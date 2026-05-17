@@ -1,0 +1,73 @@
+{
+  "info": {
+    "name": "POC Incidentes Urbanos IA",
+    "description": "Coleccion para validar registro, clasificacion, asignacion y seguimiento de incidentes urbanos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "incidentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Healthcheck",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Clasificar descripcion",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"description\": \"Hay basura acumulada y mucho olor junto al contenedor.\"\n}" },
+        "url": "{{baseUrl}}/api/classifications"
+      }
+    },
+    {
+      "name": "Asignar por clasificacion",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"classification\": {\n    \"category\": \"infraestructura_vial\",\n    \"priority\": \"media\"\n  }\n}" },
+        "url": "{{baseUrl}}/api/assignments"
+      }
+    },
+    {
+      "name": "Registrar incidente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.incident && json.incident.id) pm.collectionVariables.set('incidentId', json.incident.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"municipalityId\": \"demo-municipio\",\n  \"citizenName\": \"Manuel Krivoy\",\n  \"contact\": \"manuel@example.com\",\n  \"address\": \"Av. Principal 123\",\n  \"description\": \"Hay un bache profundo que bloquea media calle y genera riesgo de accidente.\"\n}" },
+        "url": "{{baseUrl}}/api/incidents"
+      }
+    },
+    {
+      "name": "Listar incidentes",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/incidents" }
+    },
+    {
+      "name": "Consultar incidente por ID",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/incidents/{{incidentId}}" }
+    },
+    {
+      "name": "Actualizar estado",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"en_proceso\",\n  \"comment\": \"Cuadrilla municipal asignada para resolver el reclamo.\"\n}" },
+        "url": "{{baseUrl}}/api/incidents/{{incidentId}}/status"
+      }
+    }
+  ]
+}

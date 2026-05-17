@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POC Incidentes Urbanos IA</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Arquitectura reducida de la POC</p>
+        <h1>Gestion inteligente de incidentes urbanos</h1>
+        <p>Registro, clasificacion NLP/LLM, asignacion automatica y seguimiento trazable desde una API Express.</p>
+      </section>
+
+      <section class="grid">
+        <form id="incident-form" class="card">
+          <h2>Registrar incidente</h2>
+          <label>Nombre del ciudadano
+            <input name="citizenName" placeholder="Ej: Ana Perez">
+          </label>
+          <label>Contacto
+            <input name="contact" placeholder="Ej: ana@mail.com">
+          </label>
+          <label>Direccion
+            <input name="address" placeholder="Ej: Av. Siempre Viva 742">
+          </label>
+          <label>Descripcion textual
+            <textarea name="description" required minlength="8" placeholder="Ej: Hay un bache profundo que bloquea media calle y genera riesgo para autos."></textarea>
+          </label>
+          <button type="submit">Crear reclamo</button>
+        </form>
+
+        <section class="card">
+          <h2>Consultar estado</h2>
+          <form id="search-form" class="inline-form">
+            <input name="id" placeholder="ID del incidente" required>
+            <button type="submit">Buscar</button>
+          </form>
+          <pre id="incident-detail">Sin consulta activa.</pre>
+        </section>
+      </section>
+
+      <section class="card wide">
+        <div class="section-head">
+          <h2>Ultimos incidentes</h2>
+          <button id="refresh" type="button">Actualizar</button>
+        </div>
+        <div id="incidents" class="incidents"></div>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

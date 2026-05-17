@@ -1,0 +1,15 @@
+services:
+  incidentes-api:
+    build: .
+    container_name: poc-incidentes-urbanos
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATA_FILE: /app/data/incidents.json
+      LLM_PROVIDER: local-keywords
+    volumes:
+      - incidentes-data:/app/data
+
+volumes:
+  incidentes-data:
