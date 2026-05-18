@@ -6,7 +6,9 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "incidentId", "value": "" }
+    { "key": "incidentId", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "adminIncidentId", "value": "" }
   ],
   "item": [
     {
@@ -67,6 +69,99 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": { "mode": "raw", "raw": "{\n  \"status\": \"en_proceso\",\n  \"comment\": \"Cuadrilla municipal asignada para resolver el reclamo.\"\n}" },
         "url": "{{baseUrl}}/api/incidents/{{incidentId}}/status"
+      }
+    },
+    {
+      "name": "Admin - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.collectionVariables.set('adminToken', json.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\"\n}" },
+        "url": "{{baseUrl}}/api/admin/login"
+      }
+    },
+    {
+      "name": "Admin - Crear administrador",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"nuevo-admin@example.com\",\n  \"password\": \"nuevo123\"\n}" },
+        "url": "{{baseUrl}}/api/admin"
+      }
+    },
+    {
+      "name": "Admin - Crear incidente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.incident && json.incident.id) pm.collectionVariables.set('adminIncidentId', json.incident.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"municipalityId\": \"demo-municipio\",\n  \"citizenName\": \"Operador Admin\",\n  \"contact\": \"admin@example.com\",\n  \"address\": \"Calle Admin 456\",\n  \"description\": \"Hay basura acumulada con mucho olor en la esquina.\"\n}" },
+        "url": "{{baseUrl}}/api/admin/incidents"
+      }
+    },
+    {
+      "name": "Admin - Listar incidentes",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/incidents"
+      }
+    },
+    {
+      "name": "Admin - Consultar incidente por ID",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/incidents/{{adminIncidentId}}"
+      }
+    },
+    {
+      "name": "Admin - Actualizar incidente",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"citizenName\": \"Operador Admin Editado\",\n  \"address\": \"Calle Admin 789\",\n  \"description\": \"La calle tiene un bache profundo y peligroso.\",\n  \"status\": \"en_proceso\",\n  \"comment\": \"Actualizacion administrativa del incidente.\"\n}" },
+        "url": "{{baseUrl}}/api/admin/incidents/{{adminIncidentId}}"
+      }
+    },
+    {
+      "name": "Admin - Eliminar incidente",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/incidents/{{adminIncidentId}}"
       }
     }
   ]

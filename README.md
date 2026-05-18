@@ -13,7 +13,8 @@ La POC valida el flujo funcional principal de la arquitectura reducida: frontend
 - Consulta del estado del incidente.
 - Actualizacion de estado con trazabilidad.
 - API REST consumible por web, Postman, chatbot o sistemas externos.
-- Frontend web simple para registrar y consultar reclamos.
+- Frontend web en React para registrar y consultar reclamos.
+- Panel admin separado en React con login por JWT.
 - Dockerfile y Docker Compose para ejecucion contenerizada.
 
 ## Arquitectura de la POC
@@ -65,6 +66,19 @@ Abrir:
 http://localhost:3000
 ```
 
+Panel admin:
+
+```text
+http://localhost:3000/admin
+```
+
+Credenciales de ejemplo:
+
+```text
+email: admin@example.com
+password: admin123
+```
+
 Modo desarrollo:
 
 ```bash
@@ -91,7 +105,7 @@ La persistencia se guarda en el volumen `incidentes-data` usando el archivo `/ap
 npm test
 ```
 
-Los tests validan el flujo principal: registrar, clasificar, asignar, consultar y actualizar estado con trazabilidad.
+Los tests validan el flujo principal, login admin con JWT, proteccion de rutas admin, creacion de administradores y CRUD administrativo de incidentes.
 
 ## Endpoints principales
 
@@ -152,6 +166,126 @@ Content-Type: application/json
 
 Estados permitidos: `registrado`, `asignado`, `en_proceso`, `resuelto`, `rechazado`.
 
+## Endpoints admin
+
+El flujo admin esta separado del flujo publico. No hay registro publico de administradores desde el frontend.
+
+Todas las rutas admin, excepto `POST /api/admin/login`, requieren JWT en el header:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Admin - Login
+
+```http
+POST /api/admin/login
+Content-Type: application/json
+```
+
+Valida credenciales contra `data/admins.json` y devuelve un JWT.
+
+```json
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+```
+
+Respuesta:
+
+```json
+{
+  "token": "<jwt>",
+  "admin": {
+    "email": "admin@example.com"
+  }
+}
+```
+
+### Admin - Crear administrador
+
+```http
+POST /api/admin
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+Agrega un nuevo administrador al archivo `data/admins.json`. No funciona sin token valido.
+
+```json
+{
+  "email": "nuevo-admin@example.com",
+  "password": "nuevo123"
+}
+```
+
+### Uso del JWT en rutas admin
+
+Despues de ejecutar `POST /api/admin/login`, usar el token devuelto como `Bearer token` en `Authorization`. Si el token falta, es invalido o esta vencido, la API responde `401`.
+
+### Admin - Crear incidente
+
+```http
+POST /api/admin/incidents
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+Usa el mismo cuerpo que `POST /api/incidents`. La API clasifica, asigna responsable y deja trazabilidad inicial.
+
+### Admin - Listar incidentes
+
+```http
+GET /api/admin/incidents
+Authorization: Bearer <token>
+```
+
+Admite los mismos filtros opcionales que el listado publico:
+
+```http
+GET /api/admin/incidents?status=asignado&municipalityId=demo-municipio
+Authorization: Bearer <token>
+```
+
+### Admin - Consultar incidente
+
+```http
+GET /api/admin/incidents/:id
+Authorization: Bearer <token>
+```
+
+### Admin - Actualizar incidente
+
+```http
+PUT /api/admin/incidents/:id
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+Campos editables: `municipalityId`, `citizenName`, `contact`, `address`, `description`, `status` y `comment`.
+
+Si se cambia `description`, el incidente se reclasifica y reasigna automaticamente. Si se informa `status`, debe ser uno de: `registrado`, `asignado`, `en_proceso`, `resuelto`, `rechazado`.
+
+```json
+{
+  "citizenName": "Operador Admin Editado",
+  "address": "Calle Admin 789",
+  "description": "La calle tiene un bache profundo y peligroso.",
+  "status": "en_proceso",
+  "comment": "Actualizacion administrativa del incidente."
+}
+```
+
+### Admin - Eliminar incidente
+
+```http
+DELETE /api/admin/incidents/:id
+Authorization: Bearer <token>
+```
+
+Responde `204 No Content` cuando el incidente fue eliminado.
+
 ### Clasificar texto
 
 ```http
@@ -189,14 +323,26 @@ La coleccion esta en:
 postman/POC-Incidentes-Urbanos.postman_collection.json
 ```
 
-Importarla en Postman y ejecutar primero `Registrar incidente`. Ese request guarda automaticamente el `incidentId` para las consultas y actualizaciones siguientes.
+Importarla en Postman y ejecutar primero `Registrar incidente`. Ese request guarda automaticamente el `incidentId` para las consultas y actualizaciones publicas siguientes.
+
+Para probar el flujo admin, ejecutar primero `Admin - Login`. Ese request guarda automaticamente `adminToken` y la coleccion lo usa como `Authorization: Bearer {{adminToken}}` en las rutas protegidas.
+
+Luego ejecutar `Admin - Crear incidente`. Ese request guarda automaticamente el `adminIncidentId` que usan `Admin - Consultar incidente por ID`, `Admin - Actualizar incidente` y `Admin - Eliminar incidente`.
 
 ## Persistencia local
 
-La base local es un archivo JSON en:
+La base local de incidentes es un archivo JSON en:
 
 ```text
 data/incidents.json
 ```
 
 Este archivo se crea automaticamente al iniciar la API y no se versiona para evitar subir datos de prueba.
+
+La base local de administradores esta en:
+
+```text
+data/admins.json
+```
+
+Para la POC guarda `email` y `password` en JSON plano y trae un administrador de ejemplo. En una implementacion real, las passwords deben persistirse hasheadas y el secreto JWT debe configurarse con `JWT_SECRET`.

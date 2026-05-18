@@ -3,6 +3,7 @@ import { assignIncident } from './assignmentService.js';
 import { classifyIncident } from './classificationService.js';
 
 const VALID_STATUSES = ['registrado', 'asignado', 'en_proceso', 'resuelto', 'rechazado'];
+const EDITABLE_FIELDS = ['municipalityId', 'citizenName', 'contact', 'address'];
 
 function now() {
   return new Date().toISOString();
@@ -10,6 +11,20 @@ function now() {
 
 function trace(type, detail) {
   return { at: now(), type, detail };
+}
+
+function validateStatus(status) {
+  if (!VALID_STATUSES.includes(status)) {
+    const error = new Error(`Estado invalido. Valores permitidos: ${VALID_STATUSES.join(', ')}.`);
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function notFoundError() {
+  const error = new Error('Incidente no encontrado.');
+  error.statusCode = 404;
+  return error;
 }
 
 export class IncidentService {
@@ -64,23 +79,64 @@ export class IncidentService {
   }
 
   async updateStatus(id, status, comment) {
-    if (!VALID_STATUSES.includes(status)) {
-      const error = new Error(`Estado invalido. Valores permitidos: ${VALID_STATUSES.join(', ')}.`);
-      error.statusCode = 400;
-      throw error;
-    }
+    validateStatus(status);
 
     const data = await this.database.read();
     const incident = data.incidents.find((item) => item.id === id);
     if (!incident) {
-      const error = new Error('Incidente no encontrado.');
-      error.statusCode = 404;
-      throw error;
+      throw notFoundError();
     }
 
     incident.status = status;
     incident.updatedAt = now();
     incident.trace.push(trace('seguimiento', comment || `Estado actualizado a ${status}.`));
+    await this.database.write(data);
+    return incident;
+  }
+
+  async update(id, input = {}) {
+    const data = await this.database.read();
+    const incident = data.incidents.find((item) => item.id === id);
+    if (!incident) {
+      throw notFoundError();
+    }
+
+    for (const field of EDITABLE_FIELDS) {
+      if (Object.hasOwn(input, field)) {
+        incident[field] = input[field] || null;
+      }
+    }
+
+    if (Object.hasOwn(input, 'description')) {
+      const description = String(input.description || '').trim();
+      const classification = await classifyIncident(description, this.llmConfig);
+      const assignment = assignIncident(classification);
+      incident.description = description;
+      incident.classification = classification;
+      incident.assignment = assignment;
+      incident.trace.push(trace('clasificacion', `Reclasificacion administrativa: ${classification.explanation}`));
+      incident.trace.push(trace('asignacion', `Reasignacion administrativa: ${assignment.responsibleArea}. SLA estimado: ${assignment.slaHours} horas.`));
+    }
+
+    if (Object.hasOwn(input, 'status')) {
+      validateStatus(input.status);
+      incident.status = input.status;
+    }
+
+    incident.updatedAt = now();
+    incident.trace.push(trace('admin_actualizacion', input.comment || 'Incidente actualizado desde ruta admin.'));
+    await this.database.write(data);
+    return incident;
+  }
+
+  async delete(id) {
+    const data = await this.database.read();
+    const index = data.incidents.findIndex((incident) => incident.id === id);
+    if (index === -1) {
+      throw notFoundError();
+    }
+
+    const [incident] = data.incidents.splice(index, 1);
     await this.database.write(data);
     return incident;
   }
