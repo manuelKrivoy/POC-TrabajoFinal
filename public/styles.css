@@ -1,3 +1,4 @@
+/* Estilos compartidos por el frontend publico y el panel admin. */
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -22,6 +23,7 @@ body {
 }
 
 .hero {
+  /* Bloque principal de presentacion del frontend publico. */
   background: #152033;
   color: white;
   border-radius: 28px;
@@ -41,6 +43,7 @@ body {
 .eyebrow { color: #9fc4ff; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700; }
 
 .grid {
+  /* Layout de dos columnas: formulario de reclamo y consulta de estado. */
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
   gap: 24px;
@@ -48,6 +51,7 @@ body {
 }
 
 .card {
+  /* Contenedor visual reutilizable para formularios, consultas y listados. */
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(100, 116, 139, 0.18);
   border-radius: 24px;
@@ -75,7 +79,47 @@ button {
   cursor: pointer;
 }
 button:hover { background: #174ee6; }
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
 .inline-form { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+
+.submit-button {
+  /* Boton de alta con spinner incorporado durante llamadas lentas al modelo local. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 999px;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.field-message {
+  margin: -8px 0 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.field-message.ok { color: #047857; }
+.field-message.error { color: #b91c1c; }
+.address-tools { margin: -6px 0 12px; }
+.address-map {
+  /* Mapa embebido de OpenStreetMap para confirmar visualmente la direccion validada. */
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid #cbd5e1;
+  border-radius: 18px;
+  margin: -2px 0 16px;
+  background: #e2e8f0;
+}
 
 pre {
   white-space: pre-wrap;
@@ -97,6 +141,7 @@ pre {
 .meta { color: #64748b; font-size: 0.92rem; }
 
 .admin-login-page {
+  /* Pantalla completa para login admin, separada visualmente del frontend publico. */
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -152,6 +197,7 @@ pre {
 .login-card h2 { font-size: 2rem; margin-bottom: 8px; }
 
 .admin-dashboard {
+  /* Contenedor principal del panel administrativo autenticado. */
   width: min(1480px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0 48px;

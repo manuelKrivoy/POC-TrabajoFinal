@@ -1,3 +1,5 @@
+// Servicio de administradores para el panel protegido.
+// Para la POC persiste usuarios admin en JSON plano; en produccion deberia usar hash y una BD real.
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
@@ -8,10 +10,12 @@ const DEFAULT_ADMINS = { admins: [{ email: 'admin@example.com', password: 'admin
 
 export class AdminService {
   constructor(filePath) {
+    // Acepta ruta absoluta o relativa para facilitar tests y ejecucion en Docker.
     this.filePath = path.isAbsolute(filePath) ? filePath : path.join(rootDir, filePath);
   }
 
   async ensure() {
+    // Inicializa un admin demo para poder entrar al panel sin flujo publico de registro.
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
     try {
       await fs.access(this.filePath);
@@ -32,11 +36,13 @@ export class AdminService {
   }
 
   async validateCredentials(email, password) {
+    // POC: compara contra JSON plano. En produccion esto debe usar hash de passwords.
     const data = await this.read();
     return data.admins.find((admin) => admin.email === email && admin.password === password) || null;
   }
 
   async create(input) {
+    // Alta administrativa protegida por JWT desde app.js; aca solo se validan datos y duplicados.
     const email = String(input.email || '').trim().toLowerCase();
     const password = String(input.password || '');
 

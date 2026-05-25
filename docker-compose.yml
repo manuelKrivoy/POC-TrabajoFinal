@@ -1,15 +1,25 @@
 services:
   incidentes-api:
+    # Construye la imagen desde el Dockerfile local.
     build: .
     container_name: poc-incidentes-urbanos
     ports:
+      # Expone la API/frontend del contenedor en http://localhost:3000.
       - "3000:3000"
     environment:
+      # Variables usadas por src/config.js para activar Ollama y ubicar la persistencia.
       PORT: 3000
       DATA_FILE: /app/data/incidents.json
-      LLM_PROVIDER: local-keywords
+      CLASSIFICATION_LLM_PROVIDER: codellama
+      CLASSIFICATION_LLM_TIMEOUT_MS: 8000
+      ASSIGNMENT_LLM_PROVIDER: codellama
+      CODELLAMA_BASE_URL: http://host.docker.internal:11434
+      CODELLAMA_MODEL: qwen2.5:0.5b-instruct
+      ASSIGNMENT_LLM_TIMEOUT_MS: 8000
     volumes:
+      # Monta data/ para que incidentes y admins persistan entre recreaciones del contenedor.
       - ./data:/app/data
 
 volumes:
+  # Volumen declarado por compatibilidad; el compose actual persiste con bind mount ./data.
   incidentes-data:

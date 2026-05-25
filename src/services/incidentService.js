@@ -1,3 +1,5 @@
+// Servicio de negocio principal de incidentes.
+// Orquesta clasificacion, asignacion, persistencia y trazabilidad de cada reclamo.
 import { randomUUID } from 'node:crypto';
 import { assignIncident } from './assignmentService.js';
 import { classifyIncident } from './classificationService.js';
@@ -6,14 +8,17 @@ const VALID_STATUSES = ['registrado', 'asignado', 'en_proceso', 'resuelto', 'rec
 const EDITABLE_FIELDS = ['municipalityId', 'citizenName', 'contact', 'address'];
 
 function now() {
+  // Fecha ISO para guardar timestamps comparables y serializables en JSON.
   return new Date().toISOString();
 }
 
 function trace(type, detail) {
+  // Entrada de auditoria que explica que paso con el incidente en cada etapa.
   return { at: now(), type, detail };
 }
 
 function validateStatus(status) {
+  // Evita estados arbitrarios; la API solo permite el ciclo definido por la POC.
   if (!VALID_STATUSES.includes(status)) {
     const error = new Error(`Estado invalido. Valores permitidos: ${VALID_STATUSES.join(', ')}.`);
     error.statusCode = 400;
@@ -22,21 +27,25 @@ function validateStatus(status) {
 }
 
 function notFoundError() {
+  // Error reutilizable para lecturas/updates/deletes de IDs inexistentes.
   const error = new Error('Incidente no encontrado.');
   error.statusCode = 404;
   return error;
 }
 
 export class IncidentService {
-  constructor(database, llmConfig) {
+  constructor(database, llmConfig, assignmentLlmConfig) {
+    // Recibe dependencias desde app.js para mantener este servicio testeable.
     this.database = database;
     this.llmConfig = llmConfig;
+    this.assignmentLlmConfig = assignmentLlmConfig;
   }
 
+  // Crea el incidente completo: valida texto, clasifica, asigna responsable y persiste trazabilidad.
   async create(input) {
     const description = String(input.description || '').trim();
     const classification = await classifyIncident(description, this.llmConfig);
-    const assignment = assignIncident(classification);
+    const assignment = await assignIncident(classification, this.assignmentLlmConfig, { description });
     const timestamp = now();
 
     const incident = {
@@ -65,7 +74,9 @@ export class IncidentService {
   }
 
   async list(filters = {}) {
+    // Devuelve incidentes filtrados por query params soportados por la API.
     const data = await this.database.read();
+    // Los filtros se aplican en memoria porque la POC usa una base JSON local.
     return data.incidents.filter((incident) => {
       if (filters.status && incident.status !== filters.status) return false;
       if (filters.municipalityId && incident.municipalityId !== filters.municipalityId) return false;
@@ -74,11 +85,13 @@ export class IncidentService {
   }
 
   async getById(id) {
+    // Busca un incidente puntual por UUID; devuelve null si no existe.
     const data = await this.database.read();
     return data.incidents.find((incident) => incident.id === id) || null;
   }
 
   async updateStatus(id, status, comment) {
+    // Cambia solo el estado publico y agrega una entrada de seguimiento.
     validateStatus(status);
 
     const data = await this.database.read();
@@ -95,6 +108,7 @@ export class IncidentService {
   }
 
   async update(id, input = {}) {
+    // Edicion administrativa: permite cambiar campos, estado y reclasificar si cambia la descripcion.
     const data = await this.database.read();
     const incident = data.incidents.find((item) => item.id === id);
     if (!incident) {
@@ -110,7 +124,7 @@ export class IncidentService {
     if (Object.hasOwn(input, 'description')) {
       const description = String(input.description || '').trim();
       const classification = await classifyIncident(description, this.llmConfig);
-      const assignment = assignIncident(classification);
+      const assignment = await assignIncident(classification, this.assignmentLlmConfig, { description });
       incident.description = description;
       incident.classification = classification;
       incident.assignment = assignment;
@@ -130,6 +144,7 @@ export class IncidentService {
   }
 
   async delete(id) {
+    // Eliminacion administrativa del JSON local.
     const data = await this.database.read();
     const index = data.incidents.findIndex((incident) => incident.id === id);
     if (index === -1) {

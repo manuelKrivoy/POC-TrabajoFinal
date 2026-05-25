@@ -1,3 +1,5 @@
+// Frontend del panel administrativo.
+// Maneja login JWT, listado filtrado, creacion, edicion, eliminacion de incidentes y alta de admins.
 import React, { useEffect, useState } from 'https://esm.sh/react@18.3.1';
 import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
 
@@ -15,6 +17,7 @@ const EMPTY_INCIDENT = {
 };
 
 async function api(path, { token, ...options } = {}) {
+  // Cliente HTTP del panel: agrega Authorization cuando una ruta admin requiere JWT.
   const response = await fetch(path, {
     ...options,
     headers: {
@@ -30,10 +33,12 @@ async function api(path, { token, ...options } = {}) {
 }
 
 function Field({ label, children }) {
+  // Wrapper visual reutilizable para mantener consistente el layout de formularios admin.
   return h('label', null, label, children);
 }
 
 function LoginView({ onLogin }) {
+  // Vista inicial del panel: obtiene JWT y guarda sesion en localStorage.
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('admin123');
   const [message, setMessage] = useState('Ingrese con credenciales administrativas.');
@@ -41,6 +46,7 @@ function LoginView({ onLogin }) {
   async function submit(event) {
     event.preventDefault();
     try {
+      // POST /api/admin/login valida credenciales y devuelve el token para el ruteo protegido.
       const payload = await api('/api/admin/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
@@ -81,6 +87,7 @@ function LoginView({ onLogin }) {
 }
 
 function IncidentForm({ title, value, onChange, onSubmit, submitLabel }) {
+  // Formulario reutilizado para crear y editar incidentes desde admin.
   function setField(field, nextValue) {
     onChange({ ...value, [field]: nextValue });
   }
@@ -117,6 +124,7 @@ function IncidentForm({ title, value, onChange, onSubmit, submitLabel }) {
 }
 
 function IncidentRow({ incident, selected, onSelect, onDelete }) {
+  // Fila del listado admin con acciones de edicion/eliminacion.
   return h('article', { className: `admin-incident ${selected ? 'selected' : ''}` },
     h('div', null,
       h('div', { className: 'incident-topline' },
@@ -135,6 +143,7 @@ function IncidentRow({ incident, selected, onSelect, onDelete }) {
 }
 
 function AdminCreateForm({ token, onMessage }) {
+  // Alta de administradores protegida; no existe registro publico.
   const [admin, setAdmin] = useState({ email: '', password: '' });
   const [apiResponse, setApiResponse] = useState('');
 
@@ -168,6 +177,7 @@ function AdminCreateForm({ token, onMessage }) {
 }
 
 function Dashboard({ token, email, onLogout }) {
+  // Vista principal posterior al login: concentra filtros, estadisticas y paneles laterales.
   const [incidents, setIncidents] = useState([]);
   const [message, setMessage] = useState('Cargando incidentes...');
   const [createForm, setCreateForm] = useState(EMPTY_INCIDENT);
@@ -178,6 +188,7 @@ function Dashboard({ token, email, onLogout }) {
 
   async function loadIncidents(nextFilters = filters) {
     try {
+      // GET /api/admin/incidents es la ruta protegida para operar el tablero administrativo.
       const params = new URLSearchParams(nextFilters.status ? { status: nextFilters.status } : {});
       const payload = await api(`/api/admin/incidents${params.toString() ? `?${params}` : ''}`, { token });
       const nameFilter = nextFilters.citizenName.trim().toLowerCase();
@@ -193,12 +204,14 @@ function Dashboard({ token, email, onLogout }) {
   }
 
   useEffect(() => {
+    // Si hay token guardado, /admin entra directo al dashboard y carga datos protegidos.
     loadIncidents();
   }, []);
 
   async function createIncident(event) {
     event.preventDefault();
     try {
+      // El alta admin usa el mismo pipeline de clasificacion/asignacion que el alta publica.
       await api('/api/admin/incidents', { token, method: 'POST', body: JSON.stringify(createForm) });
       setCreateForm(EMPTY_INCIDENT);
       setShowCreateIncident(false);
@@ -212,6 +225,7 @@ function Dashboard({ token, email, onLogout }) {
   async function updateIncident(event) {
     event.preventDefault();
     try {
+      // PUT /api/admin/incidents/:id permite editar datos, estado y disparar reclasificacion si cambia la descripcion.
       await api(`/api/admin/incidents/${editForm.id}`, { token, method: 'PUT', body: JSON.stringify(editForm) });
       setEditForm(null);
       setMessage('Incidente actualizado correctamente.');
@@ -224,6 +238,7 @@ function Dashboard({ token, email, onLogout }) {
   async function deleteIncident(id) {
     if (!confirm('Eliminar incidente? Esta accion no se puede deshacer.')) return;
     try {
+      // DELETE /api/admin/incidents/:id elimina el reclamo solo desde una sesion admin valida.
       await api(`/api/admin/incidents/${id}`, { token, method: 'DELETE' });
       setMessage('Incidente eliminado.');
       if (editForm?.id === id) setEditForm(null);
@@ -234,6 +249,7 @@ function Dashboard({ token, email, onLogout }) {
   }
 
   function selectIncident(incident) {
+    // Copia el incidente seleccionado a un formulario editable sin mutar el objeto original.
     setEditForm({
       id: incident.id,
       municipalityId: incident.municipalityId || '',
@@ -308,6 +324,7 @@ function Dashboard({ token, email, onLogout }) {
 }
 
 function AdminApp() {
+  // Componente raiz del panel: decide si renderizar login o dashboard segun token persistido.
   const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY) || '');
   const [email, setEmail] = useState(localStorage.getItem(ADMIN_KEY) || '');
 
@@ -323,6 +340,7 @@ function AdminApp() {
     setEmail('');
   }
 
+  // Ruteo frontend simple: con token se renderiza Dashboard; sin token se renderiza LoginView.
   return token
     ? h(Dashboard, { token, email, onLogout: logout })
     : h(LoginView, { onLogin: login });
